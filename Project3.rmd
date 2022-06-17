@@ -1,0 +1,243 @@
+---
+title: "Title of Project"
+author: "510611635"
+subtitle: "Project 3"
+date: "University of Sydney | DATA1901 | May 2022"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    self_contained: yes
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: hide
+---
+
+# Recommendation
+
+# Evidence
+
+```{r, message=F}
+# Load packages
+library(tidyverse)
+
+# Read in the dataset (from the url or directly from the file in your folder)
+toilets = read.csv("http://www.maths.usyd.edu.au/u/UG/JM/DATA1001/r/current/projects/2022data/toilets.csv")
+broadband = read.csv("http://www.maths.usyd.edu.au/u/UG/JM/DATA1001/r/current/projects/2022data/broadband.csv", na.strings = c("", "NA"))
+RBT = read.csv("RBT.csv")
+```
+
+```{r eval=FALSE, include=FALSE}
+str(RBT)
+
+# parse character into number
+RBT$RBT.conducted = parse_number(RBT$RBT.conducted)
+RBT$Positive.RBT = parse_number(RBT$Positive.RBT)
+RBT$Licences = parse_number(RBT$Licences)
+# parse int into date
+
+# add column total death
+RBT$totalDeath = RBT$Number.of.drivers.and.motorcycle.riders.killed.with.a.blood.alcohol.concentration..BAC..above.the.legal.limit + RBT$Number.of.deaths.from.crashes.involving.a.driver.or.motorcycle.rider.with.a.blood.alcohol.concentration..BAC..above.the.legal.limit
+```
+
+<!-- ## NSW: Positive RBT vs total death -->
+```{r eval=FALSE, include=FALSE}
+NSW = filter(RBT, State == "NSW")
+# omit rows with na
+NSW2 = NSW[1:12,]
+# scatter plot: Positive RBT vs total death
+ggplot(NSW2, aes(x = Positive.RBT, y = totalDeath)) + 
+  geom_point() + geom_smooth(method = "lm")
+# correlation coefficient
+cor(NSW2$Positive.RBT, NSW2$totalDeath)
+# linear model
+fit = lm(NSW$totalDeath~NSW$Positive.RBT)
+# residual plot
+ggplot(NSW2, aes(x = Positive.RBT, y = fit$residuals)) + 
+  geom_point() + geom_hline(yintercept = 0)
+```
+
+<!-- ## NSW: Positive RBT vs RBT conducted(low correlation) -->
+```{r eval=FALSE, include=FALSE}
+NSW = filter(RBT, State == "NSW")
+
+# scatter plot: Positive RBT vs total death
+ggplot(NSW, aes(x = RBT.conducted, y = Positive.RBT)) + 
+  geom_point() + geom_smooth(method = "lm")
+# correlation coefficient
+cor(NSW$Positive.RBT, NSW$RBT.conducted)
+# linear model
+fit = lm(NSW$totalDeath~NSW$Positive.RBT)
+# residual plot
+ggplot(NSW2, aes(x = Positive.RBT, y = fit$residuals)) + 
+  geom_point() + geom_hline(yintercept = 0)
+```
+
+## IDA
+The dataset was published by Australian Competition and Consumer Commission at December 7th, 2021. The test was conducted during the Septemper 2021.
+```{r IDA, }
+# remove rows with missing value or impaired service
+broadband <- broadband %>% na.omit() %>% filter(is_this_service_impaired == FALSE)
+glimpse(broadband)
+broadband %>% filter(is_this_service_underperforming == TRUE)
+```
+
+### The Retail Servive Providers in the Dataset 
+```{r Retail Service Providers barplot}
+# RSP and state
+ggplot(broadband, aes(fct_infreq(rsp))) + geom_bar(aes(fill = state_or_territory)) +  scale_x_discrete(guide = guide_axis(n.dodge=2)) + labs(x = "tiers") + scale_fill_manual(values=c("#FF9A6B", "#F7FF66", "#fbcd69", "#47ff3d", "#00db66", "#00a85a", "#00754e"))
+```
+
+
+### tiers of services
+```{r}
+# tiers
+broadband %>% filter(tier == "250/25 Mbps") %>% select(rsp) %>% table()
+broadband %>% filter(tier == "25/5 Mbps") %>% select(rsp) %>% table()
+# bar plot
+ggplot(broadband, aes(factor(tier, level = c("Fixed Wireless Plus", "12/1 Mbps", "25/5 Mbps", "25/10 Mbps", "50/20 Mbps", "75/20 Mbps", "100/20 Mbps", "100/40 Mbps", "250/25 Mbps", "250/100 Mbps", "500-990/50 Mbps")))) + geom_bar(aes(fill = rsp)) + scale_x_discrete(guide = guide_axis(n.dodge=2)) + labs(x = "tiers")
+table(broadband$tier)
+```
+
+
+## Reseatch Questions
+
+### 50/20 Mbps tier analysis
+```{r}
+# Telstra vs others
+tier_50_20 = broadband[broadband$tier == "50/20 Mbps", ]
+telstra_tier_50_20 = tier_50_20[tier_50_20$rsp == "Telstra", ]
+others_tier_50_20 = tier_50_20[tier_50_20$rsp != "Telstra", ]
+
+```
+
+#### All hour trimmed mean download speed
+```{r}
+# boxplot of all hour trimmed mean download speed by RSP
+tier_50_20 %>% ggplot(aes(x = fct_reorder(rsp, All.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE), y = All.hour.trimmed.mean.download.speed, fill = fct_reorder(rsp, All.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 50/20 Mbps All Hour Trimmed Mean Download Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Busy hour trimmed mean download
+```{r}
+# boxplot of busy hour trimmed mean download speed by RSP
+tier_50_20 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE), y = Busy.hour.trimmed.mean.download.speed, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 50/20 Mbps Busy Hour Trimmed Mean Download Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Paired T Test of trimmed mean download speed
+```{r}
+telstra_tier_50_20_download_diff = telstra_tier_50_20$All.hour.trimmed.mean.download.speed - telstra_tier_50_20$Busy.hour.trimmed.mean.download.speed
+t.test(telstra_tier_50_20_download_diff, mu = 0)
+```
+
+
+#### All hour trimmed mean upload
+```{r}
+# boxplot of all hour trimmed mean Upload speed by RSP
+tier_50_20 %>% ggplot(aes(x = fct_reorder(rsp, All.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE), y = All.hour.trimmed.mean.upload.speed, fill = fct_reorder(rsp, All.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 50/20 Mbps All Hour Trimmed Mean Upload Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Busy hour trimmed mean upload
+```{r}
+# boxplot of busy hour trimmed mean upload speed by RSP
+tier_50_20 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE), y = Busy.hour.trimmed.mean.upload.speed, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 50/20 Mbps Busy Hour Trimmed Mean Upload Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### All hour trimmed mean latency
+```{r}
+# boxplot of all hour trimmed mean Latency by RSP
+tier_50_20 %>% ggplot(aes(x = fct_reorder(rsp, All.hour.trimmed.mean.latency, .fun = median, .desc = TRUE), y = All.hour.trimmed.mean.latency, fill = fct_reorder(rsp, All.hour.trimmed.mean.latency, .fun = median, .desc = FALSE))) + geom_boxplot() + 
+  labs(title = "Tier 50/20 Mbps All Hour Trimmed Mean Latency by RSP", x = "Retail Service Providers", y = "ms") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Busy hour trimmed mean latency
+```{r}
+# boxplot of busy hour trimmed mean Latency by RSP
+tier_50_20 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.latency, .fun = median, .desc = TRUE), y = Busy.hour.trimmed.mean.latency, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.latency, .fun = median, .desc = FALSE))) + geom_boxplot() + 
+  labs(title = "Tier 50/20 Mbps Busy Hour Trimmed Mean Latency by RSP", x = "Retail Service Providers", y = "ms") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Speed comparison
+```{r}
+speed = data.frame(
+  Categories = c("All hour download speed", "All hour upload speed", "All hour download speed", "All hour upload speed", 
+                 "Busy hour download speed", "Busy hour upload speed", "Busy hour download speed", "Busy hour upload speed"),
+  Mbps = c(telstra_tier_50_20$All.hour.trimmed.mean.download.speed %>% median(), telstra_tier_50_20$All.hour.trimmed.mean.upload.speed %>% median(), others_tier_50_20$All.hour.trimmed.mean.download.speed %>% median(), others_tier_50_20$All.hour.trimmed.mean.upload.speed %>% median(), 
+           telstra_tier_50_20$Busy.hour.trimmed.mean.download.speed %>% median(), telstra_tier_50_20$Busy.hour.trimmed.mean.upload.speed %>% median(), others_tier_50_20$Busy.hour.trimmed.mean.download.speed %>% median(), others_tier_50_20$Busy.hour.trimmed.mean.upload.speed %>% median()),
+  RSP = c("Telstra", "Telstra", "Others", "Others", "Telstra", "Telstra", "Others", "Others")
+)
+ggplot(speed, aes(Categories, Mbps, fill = RSP)) + 
+  geom_col(position = "dodge" ) # + scale_fill_manual(values=c("#FF9A6B", "#F7FF66"))
+```
+
+#### Latency comparison
+```{r}
+latency = data.frame(
+  Categories = c("All hour latency", "Busy hour latency", "All hour latency", "Busy hour latency"),
+  ms = c(telstra_tier_50_20$All.hour.trimmed.mean.latency %>% median(), others_tier_50_20$All.hour.trimmed.mean.latency %>% median(), 
+           telstra_tier_50_20$Busy.hour.trimmed.mean.latency %>% median(), others_tier_50_20$Busy.hour.trimmed.mean.latency %>% median()),
+  RSP = c("Telstra", "Telstra", "Others", "Others")
+)
+ggplot(latency, aes(Categories, ms, fill = RSP)) + 
+  geom_col(position = "dodge" ) # + scale_fill_manual(values=c("#FF9A6B", "#F7FF66"))
+
+```
+
+---
+
+### 100/40 Mbps tier analysis
+```{r}
+# Telstra vs others
+tier_100_40 = broadband[broadband$tier == "100/40 Mbps", ]
+telstra_tier_100_40 = tier_100_40[tier_100_40$rsp == "Telstra", ]
+others_tier_100_40 = tier_100_40[tier_100_40$rsp != "Telstra", ]
+```
+
+#### All hour trimmed mean download
+```{r}
+# boxplot of all hour trimmed mean download speed by RSP
+tier_100_40 %>% ggplot(aes(x = fct_reorder(rsp, All.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE), y = All.hour.trimmed.mean.download.speed, fill = fct_reorder(rsp, All.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 100/40 Mbps All Hour Trimmed Mean Download Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Busy hour trimmed mean download
+```{r}
+# boxplot of busy hour trimmed mean download speed by RSP
+tier_100_40 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE), y = Busy.hour.trimmed.mean.download.speed, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 100/40 Mbps Busy Hour Trimmed Mean Download Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### All hour trimmed mean upload
+```{r}
+# boxplot of all hour trimmed mean upload speed by RSP
+tier_100_40 %>% ggplot(aes(x = fct_reorder(rsp, All.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE), y = All.hour.trimmed.mean.upload.speed, fill = fct_reorder(rsp, All.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 100/40 Mbps All Hour Trimmed Mean Upload Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Busy hour trimmed mean upload
+```{r}
+# boxplot of busy hour trimmed mean upload speed by RSP
+tier_100_40 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE), y = Busy.hour.trimmed.mean.upload.speed, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median, .desc = TRUE))) + geom_boxplot() + 
+  labs(title = "Tier 100/40 Mbps Busy Hour Trimmed Mean Upload Speed by RSP", x = "Retail Service Providers", y = "Mbps") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### All hour trimmed mean latency
+```{r}
+# boxplot of all hour trimmed mean Latency by RSP
+tier_100_40 %>% ggplot(aes(x = fct_reorder(rsp, All.hour.trimmed.mean.latency, .fun = median, .desc = TRUE), y = All.hour.trimmed.mean.latency, fill = fct_reorder(rsp, All.hour.trimmed.mean.latency, .fun = median, .desc = FALSE))) + geom_boxplot() + 
+  labs(title = "Tier 100/40 Mbps All Hour Trimmed Mean Latency by RSP", x = "Retail Service Providers", y = "ms") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+#### Busy hour trimmed mean latency
+```{r}
+# boxplot of busy hour trimmed mean Latency by RSP
+tier_100_40 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.latency, .fun = median, .desc = TRUE), y = Busy.hour.trimmed.mean.latency, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.latency, .fun = median, .desc = F))) + geom_violin() + 
+  labs(title = "Tier 100/40 Mbps Busy Hour Trimmed Mean Latency by RSP", x = "Retail Service Providers", y = "ms") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2)) + coord_flip()
+```
+
+#  Acknowledgments

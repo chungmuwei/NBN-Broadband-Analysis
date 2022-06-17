@@ -1,0 +1,217 @@
+---
+title: "The Performance Analysis of NBN100 Broadband Plan of Retail Service Providers in New South Wales"
+author: "510611635"
+subtitle: "Project 3"
+date: "University of Sydney | DATA1901 | May 2022"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    self_contained: yes
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: hide
+---
+
+# Recommendation
+The clients of the report are New South Wales citizens who are looking for NBN100 broadband plans. 
+
+# Evidence
+
+```{r, message=F}
+# Load packages
+library(tidyverse)
+
+# Read in the dataset from the url
+broadband = read.csv("http://www.maths.usyd.edu.au/u/UG/JM/DATA1001/r/current/projects/2022data/broadband.csv", na.strings = c("", "NA"))
+```
+
+
+```{r IDA and Data Cleaning, message=FALSE, include=FALSE}
+# remove rows with missing value or impaired service
+broadband <- broadband %>% na.omit() %>% filter(is_this_service_impaired == FALSE)
+glimpse(broadband)
+#broadband %>% filter(is_this_service_underperforming == TRUE)
+```
+
+According to the dataset, 50/20 Mbps and 100/40 Mbps are two of the most used NBN speed tier of the service. Hence this report will focus these two tiers and compare the performance of Telstra to other RSPs. 
+```{r find the most popular tiers, include=FALSE}
+# tiers
+table(broadband$tier)
+```
+
+## Speed Analysis
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+NSW = broadband %>% filter(state_or_territory == "NSW", rsp != "Other RSPs")
+NSW_NBN100 = NSW %>% filter(tier == "100/40 Mbps")
+
+dl = NSW_NBN100 %>% group_by(rsp) %>% summarise(median_dl_speed = round(median(Busy.hour.trimmed.mean.download.speed), 2))
+ul = NSW_NBN100 %>% group_by(rsp) %>% summarise(median_ul_speed = round(median(Busy.hour.trimmed.mean.upload.speed), 2))
+lat = NSW %>% group_by(rsp) %>% summarise(median_lat = round(median(Busy.hour.trimmed.mean.latency), 2))
+out = NSW %>% group_by(rsp) %>% summarise(median_out = round(median(Average.daily.outages), 2))
+
+df = list(dl, ul, lat, out) %>% reduce(full_join, by = "rsp")
+df
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+NSW_NBN100 %>% ggplot(aes(y=fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median),x=Busy.hour.trimmed.mean.download.speed)) + geom_boxplot() + xlim(75, 110)
+
+NSW_NBN100 %>% ggplot(aes(y=fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median),x=Busy.hour.trimmed.mean.upload.speed)) + geom_boxplot() + xlim(35, 40)
+
+NSW %>% ggplot(aes(y=fct_reorder(rsp, Busy.hour.trimmed.mean.latency, .fun = median, .desc = T),x=Busy.hour.trimmed.mean.latency)) + geom_boxplot()
+NSW %>% ggplot(aes(y=fct_reorder(rsp, Average.daily.outages, .fun = median, .desc = T),x=Average.daily.outages)) + geom_boxplot() + xlim(0, 1)
+#NSW$rsp %>% table()
+#NSW$technology %>% table()
+```
+
+
+### 50/20 Mbps Speed Tier
+```{r get 50/20 Mbps dataframe}
+# get rows with tier 50/20 Mbps
+tier_50_20 = broadband[broadband$tier == "50/20 Mbps", ]
+telstra_tier_50_20 = tier_50_20[tier_50_20$rsp == "Telstra", ]
+others_tier_50_20 = tier_50_20[tier_50_20$rsp != "Telstra", ]
+
+# median of all hour download speed
+t_5020_all_dl_m = round(median(telstra_tier_50_20$All.hour.trimmed.mean.download.speed), 2)
+o_5020_all_dl_m = round(median(others_tier_50_20$All.hour.trimmed.mean.download.speed), 2)
+
+# median of busy hour download speed
+t_5020_busy_dl_m = round(median(telstra_tier_50_20$Busy.hour.trimmed.mean.download.speed), 2)
+o_5020_busy_dl_m = round(median(others_tier_50_20$Busy.hour.trimmed.mean.download.speed), 2)
+
+# median of all hour upload speed
+t_5020_all_ul_m = round(median(telstra_tier_50_20$All.hour.trimmed.mean.upload.speed), 2)
+o_5020_all_ul_m = round(median(others_tier_50_20$All.hour.trimmed.mean.upload.speed), 2)
+
+# median of busy hour upload speed
+t_5020_busy_ul_m = round(median(telstra_tier_50_20$Busy.hour.trimmed.mean.upload.speed), 2)
+o_5020_busy_ul_m = round(median(others_tier_50_20$Busy.hour.trimmed.mean.upload.speed), 2)
+```
+
+| Categories | Telstra | Other RSPs |
+|:----------| -------:| ----------:|
+| All hour trimmed mean download speed(Mbps)  | `r t_5020_all_dl_m`  | `r o_5020_all_dl_m` |
+| Busy hour trimmed mean download speed(Mbps) | `r t_5020_busy_dl_m` | `r o_5020_busy_dl_m` |
+| All hour trimmed mean upload speed(Mbps)  | `r t_5020_all_ul_m`  | `r o_5020_all_ul_m` |
+| Busy hour trimmed mean upload speed(Mbps) | `r t_5020_busy_ul_m` | `r o_5020_busy_ul_m` |
+
+The table shows the median of 1% trimmed mean download and upload speed in all and busy hours of 50/20 Mbps tier. For download speed, Telstra is slightly higher than other RSPs. For upload speed, however, Telstra is marginally lower than other RSPs. Besides, the speed drop of Telstra and other RSPs during busy hours is negligible, which indicates the high consistency of broadband speed at the 50/20 Mbps tier.
+
+### 100/40 Mbps Speed Tier
+```{r get 100/40 Mbps dataframe}
+# get rows with tier 100/40 Mbps
+tier_100_40 = broadband[broadband$tier == "100/40 Mbps", ]
+telstra_tier_100_40 = tier_100_40[tier_100_40$rsp == "Telstra", ]
+others_tier_100_40 = tier_100_40[tier_100_40$rsp != "Telstra", ]
+
+# median of all hour download speed
+t_10040_all_dl_m = round(median(telstra_tier_100_40$All.hour.trimmed.mean.download.speed), 2)
+o_10040_all_dl_m = round(median(others_tier_100_40$All.hour.trimmed.mean.download.speed), 2)
+
+# median of busy hour download speed
+t_10040_busy_dl_m = round(median(telstra_tier_100_40$Busy.hour.trimmed.mean.download.speed), 2)
+o_10040_busy_dl_m = round(median(others_tier_100_40$Busy.hour.trimmed.mean.download.speed), 2)
+
+# median of all hour upload speed
+t_10040_all_ul_m = round(median(telstra_tier_100_40$All.hour.trimmed.mean.upload.speed), 2)
+o_10040_all_ul_m = round(median(others_tier_100_40$All.hour.trimmed.mean.upload.speed), 2)
+
+# median of busy hour upload speed
+t_10040_busy_ul_m = round(median(telstra_tier_100_40$Busy.hour.trimmed.mean.upload.speed), 2)
+o_10040_busy_ul_m = round(median(others_tier_100_40$Busy.hour.trimmed.mean.upload.speed), 2)
+```
+
+| Categories | Telstra | Other RSPs |
+|:----------| -------:| ----------:|
+| All hour trimmed mean download speed(Mbps)  | `r t_10040_all_dl_m`  | `r o_10040_all_dl_m` |
+| Busy hour trimmed mean download speed(Mbps) | `r t_10040_busy_dl_m` | `r o_10040_busy_dl_m` |
+| All hour trimmed mean upload speed(Mbps)  | `r t_10040_all_ul_m`  | `r o_10040_all_ul_m` |
+| Busy hour trimmed mean upload speed(Mbps) | `r t_10040_busy_ul_m` | `r o_10040_busy_ul_m` |
+
+The table shows the median of 1% trimmed mean download and upload speed in all and busy hours of 100/40 Mbps tier. For download speed, Telstra is much higher than other RSPs. For upload speed, however, Telstra is marginally lower than other RSPs. Despite the fact that the speed drop of Telstra is larger than other RSPs, it is not distinguishable in daily usage.
+
+## Latency Analysis
+```{r get latency dataframe}
+# median of all hour latency time
+t_all_lat_m = round(median(broadband[broadband$rsp == "Telstra", ]$All.hour.trimmed.mean.latency), 2)
+o_all_lat_m = round(median(broadband[broadband$rsp != "Telstra", ]$All.hour.trimmed.mean.latency), 2)
+
+# median of busy hour latency time
+t_busy_lat_m = round(median(broadband[broadband$rsp == "Telstra", ]$Busy.hour.trimmed.mean.latency), 2)
+o_busy_lat_m = round(median(broadband[broadband$rsp != "Telstra", ]$Busy.hour.trimmed.mean.latency), 2)
+
+broadband %>% ggplot(aes(x = rsp, y = All.hour.trimmed.mean.latency)) + geom_violin() + coord_flip()
+
+```
+
+| Categories | Telstra | Other RSPs |
+|:----------| -------:| ----------:|
+| All hour latency(ms)  |`r t_all_lat_m`|`r o_all_lat_m`|
+| Busy hour latency(ms) |`r t_busy_lat_m`|`r o_busy_lat_m`|
+
+The table shows the median of 1% trimmed mean latency in all and busy hours with all speed tiers combined. For all hour latency, the latency of Telstra is 0.1 $ms$ longer. However, for busy hours, the latency of Telstra is 0.43 $ms$ shorter. This suggests Telstra has more consistent latency than other RSPs.
+
+```{r Latency T test preparation, eval=FALSE, include=FALSE}
+t_all_lat = broadband[broadband$rsp == "Telstra", ]$All.hour.trimmed.mean.latency
+t_busy_lat = broadband[broadband$rsp == "Telstra", ]$Busy.hour.trimmed.mean.latency
+o_all_lat = broadband[broadband$rsp != "Telstra", ]$All.hour.trimmed.mean.latency
+o_busy_lat = broadband[broadband$rsp != "Telstra", ]$Busy.hour.trimmed.mean.latency
+sd(t_all_lat)
+sd(t_busy_lat)
+sd(o_all_lat)
+sd(o_busy_lat)
+
+diff = t_all_lat-t_busy_lat
+z = mean(diff) / (sd(diff) / sqrt(length(diff)))
+pnorm(z, lower.tail = T)
+```
+
+```{r All hour Latency, eval=FALSE, include=FALSE}
+shapiro.test(t_all_lat)
+shapiro.test(o_all_lat)
+var.test(t_all_lat, o_all_lat)
+t.test(t_all_lat, o_all_lat)
+```
+
+```{r Busy hour, eval=FALSE, include=FALSE}
+t.test(t_busy_lat, o_busy_lat)
+```
+
+```{r Testra latency, eval=FALSE, include=FALSE}
+t.test(t_all_lat, t_busy_lat, paired = T)
+```
+```{r Other RSPs latency, eval=FALSE, include=FALSE}
+t.test(o_all_lat, o_busy_lat, paired = T)
+```
+
+
+## Outage Analysis
+```{r}
+tel = broadband %>% filter(rsp == "Telstra")
+t = tel$Average.daily.outages
+
+oth = broadband %>% filter(rsp != "Telstra")
+o = oth$Average.daily.outages
+
+broadband %>% mutate(
+  rsp = replace(rsp, rsp != "Telstra", "Other RSPs")
+) %>% ggplot(aes(x = rsp, y = Average.daily.outages)) + geom_violin() + coord_flip()
+
+t_no_out = tel %>% filter(Average.daily.outages == 0) %>% nrow() / tel %>% nrow()
+o_no_out = oth %>% filter(Average.daily.outages == 0) %>% nrow() / oth %>% nrow()
+```
+
+| Daily outages(times) | Telstra | Other RSPs |
+|:----------| -------:| ----------:|
+| Maximum | `r max(t)` | `r max(o)` |
+| 3rd quantile | `r quantile(t, 0.75)`  | `r quantile(o, 0.75)` |
+|  Median  |`r median(t)`|`r median(o)`|
+| 1st quantile | `r quantile(t, 0.25)`  | `r quantile(o, 0.25)` |
+| No outage percentage(%) | `r round(t_no_out * 100)` | `r round(o_no_out * 100)` |
+
+#  Acknowledgments

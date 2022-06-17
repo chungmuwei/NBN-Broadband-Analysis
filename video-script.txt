@@ -1,0 +1,9 @@
+In this video, I'll briefly explain my recommendation about the best 
+100/40 Mbps family broadband plan in NSW based on thier speed, latency, average outages per day, and price. The data used in the report is published by ACCC in December 2021.
+
+I would recommend choosing Exetel since it strikes a balance between 
+performance, reliability, and price. It has over 100 Mbps download speed, resonable upload speed, and less than 10 ms latency in the busy hours. As well as low average outages per day. 
+
+Finally, Exetel is 1 of the 4 RSPs providing 40 Mbps options currently and it also have an affordable price.
+
+For more detail information, please refer to the report. Thank you. 

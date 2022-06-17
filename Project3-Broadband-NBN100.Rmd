@@ -1,0 +1,90 @@
+---
+title: "The Analysis of the NBN100 Broadband Plan provided by the Retail Service Providers in New South Wales"
+author: "510611635"
+subtitle: "Project 3"
+date: "University of Sydney | DATA1901 | May 2022"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    self_contained: yes
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: hide
+---
+
+# Recommendation
+The clients are the New South Wales citizens looking for a 100/40 Mbps broadband plan for their family. Based on the speed, reliability, and price, I would recommend choosing Exetel because it has the best cost-performance ratio.
+
+# Evidence
+
+```{r, message=F}
+# Load packages
+library(tidyverse)
+
+# Read in the dataset from the url
+broadband = read.csv("http://www.maths.usyd.edu.au/u/UG/JM/DATA1001/r/current/projects/2022data/broadband.csv", na.strings = c("", "NA"))
+
+# remove rows with missing value or impaired service
+broadband <- broadband %>% na.omit() %>% filter(is_this_service_impaired == FALSE)
+
+# filter NSW and NBN100 data
+NSW = broadband %>% filter(state_or_territory == "NSW", rsp != "Other RSPs")
+NSW_NBN100 = NSW %>% filter(tier == "100/40 Mbps")
+
+# get latency and outages data
+lat = NSW %>% group_by(rsp) %>% summarise(median_lat = round(median(Busy.hour.trimmed.mean.latency), 2))
+out = NSW %>% group_by(rsp) %>% summarise(median_out = round(median(Average.daily.outages), 2))
+```
+
+This report analyses consistency and reliability of the 100/40 Mbps plan provided by different retail service providers. The median of 1% trimmed mean download speed, upload speed, and latency in busy hours are used to evaluate the consistency of the speed. The median of average outages per day evaluates the reliability of the network. Median is used to estimate the center of the data due to the non-normal distribution of the sample and the presence of extreme outliers. One of the limitations of the speed analysis is that the sample size of Dodo & iPrimus and Vodafone are only 2 and 3 respectively, hence the result may not be accurate.
+
+## Download Speed Analysis
+
+```{r warning=FALSE}
+NSW_NBN100 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median, .desc = T), y = Busy.hour.trimmed.mean.download.speed, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.download.speed, .fun = median, .desc = T))) + geom_boxplot() + labs(title = "Busy Hours 1% Trimmed* Mean Download Speed", y = "Mbps", x = "Retail Service Providers", caption = "*Excluding the largest 1% and smallest 1% of values") + geom_vline(xintercept = 100, color = "red") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+In terms of the median, we can see that six of the RSPs deliver 100+ Mbps download speed during busy hours with MyRepublic and Optus being the fastest. The download speed of Aussie Broadband is slightly under 100 Mbps. On the other hand, Vodafone, iiNet, and Dodo & iPrimus are three of the slowest RSPs.
+
+## Upload Speed Analysis
+
+```{r warning=FALSE}
+NSW_NBN100 %>% ggplot(aes(x = fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median, .desc = T), y = Busy.hour.trimmed.mean.upload.speed, fill = fct_reorder(rsp, Busy.hour.trimmed.mean.upload.speed, .fun = median, .desc = T))) + geom_boxplot()  + labs(title = "Busy Hours 1% Trimmed* Mean Upload Speed", y = "Mbps", x = "Retail Service Providers", caption = "*Excluding the largest 1% and smallest 1% of values") + geom_vline(xintercept = 40, color = "red") + scale_fill_discrete(guide = guide_legend(title = "RSP")) + scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+In terms of the median, we can see that none of the RSPs reach the 40 Mbps upload speed they claimed during busy hours. MyRepublic outperforms the others by a significant difference whereas Superloop has the slowest speed. The speed of the rest of the RSPs is between 37 to 38 Mbps.
+
+## Latency Analysis
+
+|  | iiNet | Vodafone | Optus | Telstra | TPG | Aussi Broadband | Exetel | Superloop | MyRepublic | Dodo & iPrimus |
+|:-|-:|-:|-:|-:|-:|-:|-:|-:|-:|-:|
+|Latency median(ms)|`r lat[4,2]`|`r lat[10,2]`|`r lat[6,2]`|`r lat[8,2]`|`r lat[9,2]`|`r lat[1,2]`|`r lat[3,2]`|`r lat[7,2]`|`r lat[5,2]`|`r lat[2,2]`|
+
+For the latency test, iiNet has the lowest latency at 6.94 ms whereas Superloop, MyRepublic, and Dodo & iPrimus have the highest latency at 10.70 ms, 11.47 ms, and 11.88 ms respectively. The rest of the RSPs have latency between 8 ms to 10 ms.
+
+## Outage Analysis
+
+|  | iiNet | Optus | Superloop | Telstra | Dodo & iPrimus | Exetel | TPG | Vodafone | Aussi Broadband | MyRepublic |
+|:-|-:|-:|-:|-:|-:|-:|-:|-:|-:|-:|
+|Average daily outages median(times)|`r out[4,2]`|`r out[6,2]`|`r out[7,2]`|`r out[8,2]`|`r out[2,2]`|`r out[3,2]`|`r out[9,2]`|`r out[10,2]`|`r out[1,2]`|`r out[5,2]`|
+
+For the reliability aspect, the most reliable RSP is iiNet, the median of the outages per day is zero which means at least half of its sample has zero outage. On the other hand, the least reliable RSP is MyRepublic, the median of the outages per day is 0.15 times which is much higher than others. The medians of the outages per day of the rest of the RSPs lay between 0.03 times to 0.08 times.
+
+## Price and Current Available Plans
+
+After visiting the website of all RSPs, I found out that only MyRepublic, Exetel, Superloop, and Aussie Broadband provide 100/40 Mbps currently. The prices per month are listed below in increasing order:
+
+- MyRepublic: $89($79 the in first 6 months)
+- Exetel: $98.95($79.95 the in first 6 months)
+- Superloop: $98.95($79.95 the in first 6 months)
+- Aussie Broadband: $109
+
+# Acknowledgments
+
+1. [MyRepublic Website](https://myrepublic.net/au/nbn-plans-and-pricing/)
+2. [Exetel Website](https://www.exetel.com.au/broadband/nbn?gclid=Cj0KCQjwspKUBhCvARIsAB2IYuuZAZO8qFgBOpUyluNTMKLkEJ0bQzv31fJ4h61mv6txSXEX_ChaADkaAmkfEALw_wcB)
+3. [Superloop](https://www.superloop.com/consumer/home-broadband/nbn.html?referral_method=Google%20Ads&gclid=Cj0KCQjwspKUBhCvARIsAB2IYutIeCP8LKlOwc3QfeskeYgnqHhkT_4FRU8rHFdds-zx7cZkSKLS3gkaAg5SEALw_wcB)
+4. [Aussie Broadband](https://www.aussiebroadband.com.au/nbn-plans/)
